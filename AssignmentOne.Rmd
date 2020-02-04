@@ -1,0 +1,176 @@
+---
+title: "AssignmentOne"
+author: "ad699"
+date: "02/02/2020"
+output: github_document
+---
+
+## Set-up
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+``` 
+
+
+## Open data (10 points)
+
+In this assignment you will work with the individual level data from wave 8 of the Understanding Society survey. First, you need to open the data set. Please complete the code below.
+
+```{r}
+library(tidyverse)
+data <- read_tsv("/Users/alexdennis/Documents/DA-III/data/UKDA-6614-tab/tab/ukhls_w8/h_indresp.tab")
+```
+
+Now you have got your data frame stored as Data. 
+
+
+
+## Select variables (10 points)
+
+The data for Wave 8 of the Understanding Society were collected in 2016-18. Among other things, people were asked the following question: "Should the United Kingdom remain a member of the European Union or leave the European Union?" In this assignment, we will explore how answers to this question depend on sex and age.
+
+First, you need to select the variables for the analysis. You want to keep the following variables: cross-wave individual identifier (*pidp*), support for the UK remaining or leaving the EU (*h_eumem*), sex (*h_sex_dv*), age (*h_age_dv*), and sample origin (*h_memorig*).
+
+Complete the code below to select those variables from the data frame and save the result.
+
+```{r}
+data <- data %>%
+        select(pidp, h_eumem, h_sex_dv, h_age_dv, h_memorig)
+View(data)
+```
+
+
+
+
+## Filter observations (10 points)
+
+To make nationally representative estimates from the Understanding Society data we would need to use weight coefficients. There are many different types of weight coefficients that can be used depending on the question and the level of analysis (see the User Guide, pp. 65-71). We will not do this in this assignment. However, what we want to do is to keep data from the original Understanding Society sample only (ukhls gb 2009-10), dropping  data for Northern Ireland, the BHPS cohort members and ethnic minority boost samples. This will make data closer to be representative for Great Britain. You need to choose the observations where *h_memorig* has the value of 1.
+
+```{r}
+data <- data %>%
+        filter(h_memorig==1)
+View(data)
+
+```
+
+
+
+## Recode data (20 points)
+
+Let us tabulate the variables for EU support, sex, and age.
+
+```{r}
+table(data$h_eumem)
+table(data$h_sex_dv)
+table(data$h_age_dv)
+```
+
+You will see that all these variables are numeric. You can learn what the numeric codes mean by checking the codebook here: https://www.understandingsociety.ac.uk/documentation/mainstage/dataset-documentation/datafile/indresp/wave/8 .
+
+We want to do the following:
+
+1) Recode the variable for EU support as binary (1 for Remain, 0 for Leave), coding all types of missing values (including refusals and "don't know") as NA.
+2) Recode sex into a character vector with the values "male" or "female".
+3) Recode age into a variable with the following categories: 16 to 25, 26 to 40, 41 to 55, 56 to 70, over 70.
+
+In all cases, we want to create new variables.
+
+```{r}
+data <- data %>%
+        mutate(EU = case_when(
+         h_eumem==2 ~ "0",
+         h_eumem==1 ~ "1",
+         h_eumem<=0 ~ "NA"
+        ))
+View(data)
+
+data <- data %>%
+  mutate(sex = case_when(
+          data$h_sex_dv==1 ~ "Male",
+          data$h_sex_dv==2 ~ "Female"))
+View(data)
+
+data <- data %>% 
+  mutate(agegr = case_when(
+    between(h_age_dv, 16, 25) ~ "16 to 25", 
+    between(h_age_dv, 26, 40) ~ "26 to 40",
+    between(h_age_dv, 41, 55) ~ "41 to 55", 
+    between(h_age_dv, 56, 70) ~ "56 to 70",
+    h_age_dv>=71~ "Over 70"
+  ))
+View(data)
+          
+```
+
+
+## Summarise data (20 points)
+
+Let us **dplyr** to calculate how many people in the sample supported Remain and Leave, both as absolute numbers and percentages.
+
+```{r}
+# Absolute Numbers
+data %>%
+  select(EU) %>%
+  filter(EU=="1" | EU=="0") %>%
+  table()
+
+# Percentages
+data %>%
+  select(EU) %>%
+  filter(EU=="1" | EU=="0") %>%
+  table() %>%
+  prop.table() * 100
+
+# This excludes all NA responses. 
+        
+```
+
+Write a couple of sentences with the interpretation of this result. How this compares with the result of the 2016 referendum? Why?
+
+*How does this compare?* 
+When excluding all non-applicable responses, in this sample there is a clear majority for remain (~54%) over leave (~46%). However, the 2016 referendum returned a slight majority for leave (~52%), not remain (~48). This sample is ~6 points off the population. 
+
+*Why?* 
+There is a significant minority of responses in the dataset that are N/A (~10%); if these responses were converted into "leave" or "remain" votes, the sample accuracy could perhaps be improved.
+
+
+## Summarise data by sex and age (30 points)
+
+Now let us look at the support for Leave and Remain by sex and age. Use your newly created variables.
+
+
+```{r}
+# Table 1 (Sex)
+data %>%
+  select(EU, sex) %>%
+  filter(EU=="1" | EU=="0") %>%
+  table() %>%
+  prop.table() * 100
+
+# Table 2 (Age)
+data %>%
+  select(EU, agegr) %>%
+  filter(EU=="1" | EU=="0") %>%
+  table() %>%
+  prop.table() * 100
+
+# Tables 3.1 & 3.2 (Sex & Age)
+data %>%
+  select(EU, agegr, sex) %>%
+  filter(EU=="1" | EU=="0") %>%
+  table() %>%
+  prop.table() * 100
+      
+```
+
+
+Write a couple of sentences interpreting your results.
+
+*Sex*
+Both tables 1 & 3 show female respondents to be more pro-Remain than their male counterparts. Table 1 shows that the male vote is relatively evenly split: with less than 2% difference between pro-Remain and pro-Leave. However, there is a big difference in the female cohort: a ~7% difference between pro-Remain and pro-Leave (in remain's favour). 
+
+*Age*
+As one can see with Table 2, age is strongly correlated with pro-Leave sympathies. In the youngest cohort (16 to 25), the difference between leave and remain is the largest (in Remain's favour). As one progresses through the cohorts, Remain's majority decreases consistently until "56 to 70", where Leave takes over. Leave's lead increases further in the final cohort (Over 70). 
+
+*Both* 
+When one tabulates for both variables, one finds that age is the most powerful explanatory variable. However, sex is also important. Table 3.1 (the female table), shows a similar trend to table 2: with younger participants being more pro-Remain, and the older participants becoming more pro-Leave. However, in the cohort "56 to 70" in table 3.1, there is still a slight remain majority, compared to leave majorities in the same cohort in tables 2 & 3.2. This shows sex to be significant explanatory variable alongside age. 
+
